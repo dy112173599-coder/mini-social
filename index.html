@@ -93,6 +93,24 @@
         }
         textarea { resize: none; font-family: inherit; }
         
+        /* 记住密码复选框 */
+        .remember-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .remember-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+        
         .btn {
             padding: 10px 22px;
             border: none;
@@ -301,6 +319,10 @@
         <div id="registerFields" class="hidden">
             <input type="text" id="bioInput" placeholder="📝 个性签名（可选）" maxlength="50">
         </div>
+        <!-- 记住密码 -->
+        <label class="remember-row" id="rememberRow">
+            <input type="checkbox" id="rememberCheckbox"> 记住密码
+        </label>
         <button class="btn btn-primary" id="authBtn" onclick="loginOrRegister()">登 录</button>
         <div class="switch-link" id="switchMode">没有账号？点击注册</div>
         <div id="authMsg" class="error-msg"></div>
@@ -308,7 +330,6 @@
 
     <!-- 主界面 -->
     <div id="mainSection" class="hidden">
-        <!-- 导航栏 -->
         <div class="nav">
             <div class="nav-left" onclick="showMyProfile()">
                 <div id="navAvatar"></div>
@@ -320,14 +341,12 @@
             </div>
         </div>
         
-        <!-- 标签切换 -->
         <div class="tabs">
             <button id="tabTimeline" class="active" onclick="switchTab('timeline')">📋 动态</button>
             <button id="tabDiscover" onclick="switchTab('discover')">🔍 发现</button>
             <button id="tabUsers" onclick="switchTab('users')">👥 用户</button>
         </div>
         
-        <!-- 发布框 -->
         <div class="card post-create" id="postCreateBox">
             <div id="createAvatar"></div>
             <div class="input-area">
@@ -336,16 +355,13 @@
             </div>
         </div>
         
-        <!-- 搜索框 -->
         <div class="card search-box hidden" id="searchBox">
             <input type="text" id="searchInput" placeholder="🔍 搜索用户..." oninput="searchUsers()">
         </div>
         
-        <!-- 内容区域 -->
         <div id="contentArea"></div>
     </div>
     
-    <!-- 个人主页弹窗 -->
     <div class="modal-overlay hidden" id="profileModal">
         <div class="modal">
             <button class="close-btn" onclick="closeProfileModal()">✕</button>
@@ -353,7 +369,6 @@
         </div>
     </div>
     
-    <!-- 编辑资料弹窗 -->
     <div class="modal-overlay hidden" id="editProfileModal">
         <div class="modal">
             <button class="close-btn" onclick="closeEditModal()">✕</button>
@@ -385,6 +400,34 @@
     let currentTab = 'timeline';
     let isRegisterMode = false;
     let darkMode = localStorage.getItem('darkMode') === 'true';
+
+    // ========== 记住密码功能 ==========
+    function saveCredentials(username, password) {
+        localStorage.setItem('savedUsername', username);
+        localStorage.setItem('savedPassword', password);
+        localStorage.setItem('rememberMe', 'true');
+    }
+
+    function clearCredentials() {
+        localStorage.removeItem('savedUsername');
+        localStorage.removeItem('savedPassword');
+        localStorage.removeItem('rememberMe');
+    }
+
+    function loadSavedCredentials() {
+        if (localStorage.getItem('rememberMe') === 'true') {
+            const savedUser = localStorage.getItem('savedUsername');
+            const savedPass = localStorage.getItem('savedPassword');
+            if (savedUser && savedPass) {
+                document.getElementById('usernameInput').value = savedUser;
+                document.getElementById('passwordInput').value = savedPass;
+                document.getElementById('rememberCheckbox').checked = true;
+            }
+        }
+    }
+
+    // 页面加载时自动填充
+    loadSavedCredentials();
 
     const avatarColors = [
         '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c',
@@ -421,14 +464,21 @@
         document.getElementById('switchMode').textContent = isRegisterMode ? '已有账号？点击登录' : '没有账号？点击注册';
         document.getElementById('authBtn').textContent = isRegisterMode ? '注 册' : '登 录';
         document.getElementById('registerFields').classList.toggle('hidden', !isRegisterMode);
+        document.getElementById('rememberRow').classList.toggle('hidden', isRegisterMode);
         document.getElementById('authMsg').textContent = '';
         document.getElementById('usernameInput').value = '';
         document.getElementById('passwordInput').value = '';
+        if (isRegisterMode) {
+            document.getElementById('rememberCheckbox').checked = false;
+        } else {
+            loadSavedCredentials();
+        }
     });
 
     function showAuth() {
         document.getElementById('authSection').classList.remove('hidden');
         document.getElementById('mainSection').classList.add('hidden');
+        loadSavedCredentials();
     }
 
     function showMain() {
@@ -476,11 +526,21 @@
                     document.getElementById('switchMode').textContent = '没有账号？点击注册';
                     document.getElementById('authBtn').textContent = '登 录';
                     document.getElementById('registerFields').classList.add('hidden');
+                    document.getElementById('rememberRow').classList.remove('hidden');
                     btn.disabled = false;
                 });
             } else {
                 if (!userData) { msgDiv.textContent = '用户不存在'; btn.disabled = false; btn.textContent = '登 录'; return; }
                 if (userData.password !== password) { msgDiv.textContent = '密码错误'; btn.disabled = false; btn.textContent = '登 录'; return; }
+                
+                // 记住密码
+                const rememberMe = document.getElementById('rememberCheckbox').checked;
+                if (rememberMe) {
+                    saveCredentials(username, password);
+                } else {
+                    clearCredentials();
+                }
+                
                 currentUser = userData;
                 showMain();
                 btn.disabled = false;
@@ -494,6 +554,7 @@
     }
 
     function logout() {
+        // 退出时不清除记住的密码，保留在登录框
         currentUser = null;
         showAuth();
     }
