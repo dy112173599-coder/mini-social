@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>迷你社交 - Mini Social</title>
+    <title>迷你社交 - 多人版</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -13,336 +18,502 @@
             justify-content: center;
             padding: 20px;
         }
-        .app {
-            width: 100%;
-            max-width: 600px;
-        }
+        .app { width: 100%; max-width: 600px; }
         .hidden { display: none !important; }
-        /* 登录/注册卡片 */
+        
         .auth-card {
             background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            text-align: center;
         }
-        .auth-card h2 { margin-bottom: 15px; color: #1a1a2e; }
+        .auth-card h2 { 
+            margin-bottom: 20px; 
+            color: #1a1a2e; 
+            font-size: 28px;
+        }
+        .auth-card .icon { font-size: 50px; margin-bottom: 10px; }
         input, textarea {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin: 8px 0;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border 0.3s;
         }
-        button {
-            padding: 10px 20px;
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #4267B2;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             background: #4267B2;
             color: white;
-            font-size: 14px;
+            font-size: 16px;
+            font-weight: bold;
             cursor: pointer;
-            margin-top: 5px;
+            margin-top: 10px;
+            transition: background 0.3s;
         }
-        button:hover { opacity: 0.9; }
+        .btn-primary:hover { background: #365899; }
+        
         .nav {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: white;
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 15px 20px;
+            border-radius: 12px;
             margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        .nav span { font-weight: bold; color: #4267B2; }
+        .nav .user-info { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px;
+            font-weight: bold;
+            color: #1a1a2e;
+        }
+        .nav .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+        }
+        .btn-logout {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            background: white;
+            color: #666;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn-logout:hover { background: #f5f5f5; }
+        
         .post-create {
             background: white;
-            padding: 15px;
-            border-radius: 8px;
+            padding: 20px;
+            border-radius: 12px;
             margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
         .post-create textarea {
-            height: 60px;
+            height: 80px;
             resize: none;
+            border: 2px solid #f0f0f0;
+            background: #fafafa;
         }
+        .post-create textarea:focus {
+            background: white;
+            border-color: #4267B2;
+        }
+        .post-create .btn-primary { width: auto; padding: 10px 30px; }
+        
         .post {
             background: white;
-            padding: 15px;
-            border-radius: 8px;
+            padding: 20px;
+            border-radius: 12px;
             margin-bottom: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s;
         }
-        .post .author { font-weight: bold; margin-bottom: 5px; color: #1a1a2e; }
-        .post .content { margin: 8px 0; line-height: 1.5; }
-        .post .meta { font-size: 12px; color: #888; }
-        .actions { margin-top: 10px; display: flex; gap: 15px; }
+        .post:hover { transform: translateY(-1px); }
+        .post .author-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .post .author {
+            font-weight: bold;
+            color: #1a1a2e;
+            font-size: 16px;
+        }
+        .post .time {
+            font-size: 12px;
+            color: #999;
+        }
+        .post .content {
+            margin: 10px 0;
+            line-height: 1.6;
+            color: #333;
+            font-size: 15px;
+        }
+        .post .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+        }
         .actions button {
-            background: none;
-            color: #4267B2;
-            border: 1px solid #ddd;
-            padding: 5px 12px;
+            padding: 8px 18px;
+            border: 1px solid #e0e0e0;
             border-radius: 20px;
-            font-size: 13px;
+            background: white;
+            color: #555;
+            font-size: 14px;
             cursor: pointer;
+            transition: all 0.2s;
         }
-        .actions button:hover { background: #f0f2f5; }
-        .follow-btn { background: #f0f2f5; color: #333; }
-        .follow-btn.following { background: #e4e6eb; }
-        .comment-section { margin-top: 10px; }
-        .comment-input { display: flex; gap: 8px; margin: 8px 0; }
-        .comment-input input { flex: 1; }
-        .comment-list { margin-top: 5px; }
-        .comment-item { font-size: 13px; margin-bottom: 4px; }
-        .comment-item strong { color: #1a1a2e; }
-        /* 切换提示 */
-        .switch-link { color: #4267B2; cursor: pointer; margin-left: 10px; }
+        .actions button:hover {
+            background: #f0f2f5;
+            border-color: #4267B2;
+        }
+        .actions button.liked {
+            background: #e7f3ff;
+            color: #4267B2;
+            border-color: #4267B2;
+        }
+        
+        .comment-section {
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+        .comment-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        .comment-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #f5f5f5;
+            font-size: 14px;
+        }
+        .comment-item strong {
+            color: #4267B2;
+        }
+        .comment-item .comment-time {
+            font-size: 11px;
+            color: #bbb;
+            margin-left: 8px;
+        }
+        .comment-input-row {
+            display: flex;
+            gap: 8px;
+        }
+        .comment-input-row input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .comment-input-row button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background: #4267B2;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .switch-link {
+            color: #4267B2;
+            cursor: pointer;
+            margin-top: 15px;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .switch-link:hover { text-decoration: underline; }
+        .error-msg { color: #e74c3c; font-size: 14px; margin-top: 10px; }
+        .success-msg { color: #27ae60; font-size: 14px; margin-top: 10px; }
+        
+        .online-badge {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2ecc71;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
 <div class="app">
-    <!-- 登录/注册页面 -->
+    <!-- 登录/注册 -->
     <div id="authSection" class="auth-card">
-        <h2 id="authTitle">登录</h2>
-        <input type="text" id="usernameInput" placeholder="用户名">
-        <input type="password" id="passwordInput" placeholder="密码">
-        <button onclick="loginOrRegister()">确定</button>
-        <span class="switch-link" id="switchMode">没有账号？点击注册</span>
-        <div id="authMsg" style="color:red; margin-top:8px;"></div>
+        <div class="icon">🌐</div>
+        <h2 id="authTitle">欢迎来到迷你社交</h2>
+        <p style="color:#888; margin-bottom:15px;">多人实时互动平台</p>
+        <input type="text" id="usernameInput" placeholder="👤 输入用户名">
+        <input type="password" id="passwordInput" placeholder="🔒 输入密码">
+        <button class="btn-primary" onclick="loginOrRegister()">进入</button>
+        <div class="switch-link" id="switchMode">没有账号？点击注册</div>
+        <div id="authMsg" class="error-msg"></div>
     </div>
 
-    <!-- 主界面（登录后可见） -->
+    <!-- 主界面 -->
     <div id="mainSection" class="hidden">
         <div class="nav">
-            <span>👤 <span id="currentUserDisplay"></span></span>
-            <button onclick="logout()">退出</button>
+            <div class="user-info">
+                <div class="avatar" id="userAvatar"></div>
+                <span id="currentUserDisplay"></span>
+                <span class="online-badge" title="在线"></span>
+            </div>
+            <button class="btn-logout" onclick="logout()">🚪 退出</button>
         </div>
         <div class="post-create">
-            <textarea id="postContent" placeholder="分享新鲜事..."></textarea>
-            <button onclick="createPost()">发布</button>
+            <textarea id="postContent" placeholder="💭 分享新鲜事..."></textarea>
+            <button class="btn-primary" onclick="createPost()">📝 发布动态</button>
         </div>
-        <div id="postList"></div>
+        <div id="postList">
+            <p style="text-align:center; color:#999; padding:40px;">加载中...</p>
+        </div>
     </div>
 </div>
 
 <script>
-    // ========== 数据存储 ==========
-    function getDB() {
-        return JSON.parse(localStorage.getItem('miniSocialDB')) || { users: {}, posts: [] };
-    }
-    function saveDB(db) {
-        localStorage.setItem('miniSocialDB', JSON.stringify(db));
+    // ========== ⚠️ 替换成你自己的 Firebase 配置 ==========
+  const firebaseConfig = {
+  apiKey: "AIzaSyByRvYiXfmG7_u3BVaZzUdRvhyUKv-L5yk",
+  authDomain: "mini-social-91anguang.firebaseapp.com",
+  databaseURL: "https://mini-social-91anguang-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mini-social-91anguang",
+  storageBucket: "mini-social-91anguang.firebasestorage.app",
+  messagingSenderId: "27129562847",
+  appId: "1:27129562847:web:bb225fffee0328654e4b6a",
+  measurementId: "G-3982CLW9HD"
+};
+    // ========== 以上必须替换！==========
+
+    // 初始化 Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    let currentUser = null;
+
+    // ========== 界面切换 ==========
+    function showAuth() {
+        document.getElementById('authSection').classList.remove('hidden');
+        document.getElementById('mainSection').classList.add('hidden');
+        document.getElementById('authMsg').textContent = '';
     }
 
-    // 当前登录用户
-    let currentUser = localStorage.getItem('currentUser') || null;
-
-    // ========== 初始化 ==========
-    if (currentUser) {
-        showMain();
-    } else {
-        showAuth();
-        document.getElementById('authTitle').textContent = '登录';
-        document.getElementById('switchMode').textContent = '没有账号？点击注册';
+    function showMain() {
+        document.getElementById('authSection').classList.add('hidden');
+        document.getElementById('mainSection').classList.remove('hidden');
+        document.getElementById('currentUserDisplay').textContent = currentUser.username;
+        document.getElementById('userAvatar').textContent = currentUser.username[0].toUpperCase();
+        document.getElementById('postContent').value = '';
+        loadPosts();
+        // 实时监听新动态
+        listenToNewPosts();
     }
+
     let isRegisterMode = false;
-
     document.getElementById('switchMode').addEventListener('click', () => {
         isRegisterMode = !isRegisterMode;
-        document.getElementById('authTitle').textContent = isRegisterMode ? '注册' : '登录';
+        document.getElementById('authTitle').textContent = isRegisterMode ? '注册新账号' : '欢迎来到迷你社交';
         document.getElementById('switchMode').textContent = isRegisterMode ? '已有账号？点击登录' : '没有账号？点击注册';
         document.getElementById('authMsg').textContent = '';
         document.getElementById('usernameInput').value = '';
         document.getElementById('passwordInput').value = '';
     });
 
-    function showAuth() {
-        document.getElementById('authSection').classList.remove('hidden');
-        document.getElementById('mainSection').classList.add('hidden');
-    }
-    function showMain() {
-        document.getElementById('authSection').classList.add('hidden');
-        document.getElementById('mainSection').classList.remove('hidden');
-        document.getElementById('currentUserDisplay').textContent = currentUser;
-        loadPosts();
-    }
-
     // ========== 登录/注册 ==========
     function loginOrRegister() {
         const username = document.getElementById('usernameInput').value.trim();
         const password = document.getElementById('passwordInput').value.trim();
         const msgDiv = document.getElementById('authMsg');
+
         if (!username || !password) {
             msgDiv.textContent = '用户名和密码不能为空';
             return;
         }
-        const db = getDB();
-        if (isRegisterMode) {
-            if (db.users[username]) {
-                msgDiv.textContent = '用户名已存在';
-                return;
-            }
-            db.users[username] = { password, following: [] }; // following 列表
-            saveDB(db);
-            msgDiv.style.color = 'green';
-            msgDiv.textContent = '注册成功，请登录';
-            // 自动切换到登录模式
-            isRegisterMode = false;
-            document.getElementById('authTitle').textContent = '登录';
-            document.getElementById('switchMode').textContent = '没有账号？点击注册';
+        if (username.length < 2 || password.length < 3) {
+            msgDiv.textContent = '用户名至少2位，密码至少3位';
             return;
-        } else {
-            // 登录
-            const user = db.users[username];
-            if (!user || user.password !== password) {
-                msgDiv.textContent = '用户名或密码错误';
-                return;
-            }
-            // 登录成功
-            currentUser = username;
-            localStorage.setItem('currentUser', currentUser);
-            showMain();
         }
+
+        // 从 Firebase 读取用户
+        database.ref('users/' + username).once('value').then(snapshot => {
+            const userData = snapshot.val();
+            
+            if (isRegisterMode) {
+                // 注册
+                if (userData) {
+                    msgDiv.textContent = '用户名已存在';
+                    return;
+                }
+                // 创建用户
+                database.ref('users/' + username).set({
+                    username: username,
+                    password: password,
+                    createdAt: Date.now()
+                }).then(() => {
+                    msgDiv.className = 'success-msg';
+                    msgDiv.textContent = '注册成功！请登录';
+                    isRegisterMode = false;
+                    document.getElementById('authTitle').textContent = '欢迎来到迷你社交';
+                    document.getElementById('switchMode').textContent = '没有账号？点击注册';
+                });
+            } else {
+                // 登录
+                if (!userData) {
+                    msgDiv.textContent = '用户不存在';
+                    return;
+                }
+                if (userData.password !== password) {
+                    msgDiv.textContent = '密码错误';
+                    return;
+                }
+                // 登录成功
+                currentUser = { username: username };
+                showMain();
+            }
+        });
     }
 
     function logout() {
         currentUser = null;
-        localStorage.removeItem('currentUser');
         showAuth();
         document.getElementById('usernameInput').value = '';
         document.getElementById('passwordInput').value = '';
     }
 
-    // ========== 动态加载 ==========
-    function loadPosts() {
-        const db = getDB();
-        const posts = db.posts.sort((a, b) => b.timestamp - a.timestamp); // 最新在前
-        const postListDiv = document.getElementById('postList');
-        postListDiv.innerHTML = '';
-
-        posts.forEach(post => {
-            const postDiv = document.createElement('div');
-            postDiv.className = 'post';
-
-            // 作者信息 + 关注按钮（如果不是自己）
-            let followBtnHTML = '';
-            if (post.author !== currentUser) {
-                const isFollowing = db.users[currentUser]?.following?.includes(post.author);
-                followBtnHTML = `<button class="follow-btn ${isFollowing ? 'following' : ''}" 
-                    onclick="toggleFollow('${post.author}', this)">${isFollowing ? '已关注' : '关注'}</button>`;
-            }
-
-            const likeCount = post.likes ? post.likes.length : 0;
-            const isLiked = post.likes && post.likes.includes(currentUser);
-
-            postDiv.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div class="author">${post.author}</div>
-                    ${followBtnHTML}
-                </div>
-                <div class="content">${post.content}</div>
-                <div class="meta">${new Date(post.timestamp).toLocaleString()}</div>
-                <div class="actions">
-                    <button ${isLiked ? 'style="background:#e7f3ff;"' : ''} onclick="toggleLike('${post.id}')">
-                        👍 ${likeCount} 赞
-                    </button>
-                    <button onclick="toggleCommentInput('${post.id}')">💬 评论</button>
-                </div>
-                <div class="comment-section" id="comment-${post.id}" style="display:none;">
-                    <div class="comment-list">
-                        ${(post.comments || []).map(c => 
-                            `<div class="comment-item"><strong>${c.author}:</strong> ${c.text} <span style="color:#888; font-size:11px;">${new Date(c.time).toLocaleString()}</span></div>`
-                        ).join('')}
-                    </div>
-                    <div class="comment-input">
-                        <input type="text" id="commentInput-${post.id}" placeholder="写评论...">
-                        <button onclick="addComment('${post.id}')">发送</button>
-                    </div>
-                </div>
-            `;
-            postListDiv.appendChild(postDiv);
-        });
-    }
-
     // ========== 发布动态 ==========
     function createPost() {
         const content = document.getElementById('postContent').value.trim();
-        if (!content) return;
-        const db = getDB();
-        const newPost = {
-            id: Date.now().toString(),
-            author: currentUser,
+        if (!content || !currentUser) return;
+
+        const postsRef = database.ref('posts');
+        const newPostRef = postsRef.push();
+        newPostRef.set({
+            author: currentUser.username,
             content: content,
             timestamp: Date.now(),
-            likes: [],
-            comments: []
-        };
-        db.posts.push(newPost);
-        saveDB(db);
-        document.getElementById('postContent').value = '';
-        loadPosts();
+            likes: {},
+            comments: {}
+        }).then(() => {
+            document.getElementById('postContent').value = '';
+        });
+    }
+
+    // ========== 加载动态 + 实时监听 ==========
+    function loadPosts() {
+        database.ref('posts').orderByChild('timestamp').once('value').then(snapshot => {
+            const posts = [];
+            snapshot.forEach(child => {
+                posts.push({ id: child.key, ...child.val() });
+            });
+            posts.sort((a, b) => b.timestamp - a.timestamp);
+            renderPosts(posts);
+        });
+    }
+
+    function listenToNewPosts() {
+        database.ref('posts').on('value', snapshot => {
+            const posts = [];
+            snapshot.forEach(child => {
+                posts.push({ id: child.key, ...child.val() });
+            });
+            posts.sort((a, b) => b.timestamp - a.timestamp);
+            renderPosts(posts);
+        });
+    }
+
+    // ========== 渲染动态列表 ==========
+    function renderPosts(posts) {
+        const postListDiv = document.getElementById('postList');
+        if (posts.length === 0) {
+            postListDiv.innerHTML = '<p style="text-align:center; color:#999; padding:40px;">📭 还没有动态，发第一条吧！</p>';
+            return;
+        }
+
+        postListDiv.innerHTML = posts.map(post => {
+            const likes = post.likes || {};
+            const likeCount = Object.keys(likes).length;
+            const isLiked = likes[currentUser.username] === true;
+            const comments = post.comments || {};
+            const commentList = Object.values(comments).sort((a, b) => a.time - b.time);
+
+            return `
+                <div class="post">
+                    <div class="author-row">
+                        <span class="author">👤 ${post.author}</span>
+                        <span class="time">${new Date(post.timestamp).toLocaleString('zh-CN')}</span>
+                    </div>
+                    <div class="content">${escapeHtml(post.content)}</div>
+                    <div class="actions">
+                        <button class="${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+                            ${isLiked ? '❤️' : '🤍'} ${likeCount} 赞
+                        </button>
+                        <button onclick="toggleComments('${post.id}')">
+                            💬 ${commentList.length} 评论
+                        </button>
+                    </div>
+                    <div class="comment-section" id="comments-${post.id}" style="display:none;">
+                        <div class="comment-list">
+                            ${commentList.map(c => `
+                                <div class="comment-item">
+                                    <strong>${c.author}</strong>: ${escapeHtml(c.text)}
+                                    <span class="comment-time">${new Date(c.time).toLocaleString('zh-CN')}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="comment-input-row">
+                            <input type="text" id="commentInput-${post.id}" placeholder="写评论...">
+                            <button onclick="addComment('${post.id}')">发送</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     // ========== 点赞 ==========
     function toggleLike(postId) {
-        const db = getDB();
-        const post = db.posts.find(p => p.id === postId);
-        if (!post) return;
-        if (!post.likes) post.likes = [];
-        const idx = post.likes.indexOf(currentUser);
-        if (idx > -1) {
-            post.likes.splice(idx, 1); // 取消赞
-        } else {
-            post.likes.push(currentUser);
-        }
-        saveDB(db);
-        loadPosts();
+        if (!currentUser) return;
+        const likeRef = database.ref('posts/' + postId + '/likes/' + currentUser.username);
+        likeRef.once('value').then(snapshot => {
+            if (snapshot.val()) {
+                likeRef.remove();
+            } else {
+                likeRef.set(true);
+            }
+        });
     }
 
-    // ========== 评论显示/隐藏 ==========
-    function toggleCommentInput(postId) {
-        const section = document.getElementById(`comment-${postId}`);
+    // ========== 评论 ==========
+    function toggleComments(postId) {
+        const section = document.getElementById('comments-' + postId);
         section.style.display = section.style.display === 'none' ? 'block' : 'none';
     }
 
-    // ========== 添加评论 ==========
     function addComment(postId) {
-        const input = document.getElementById(`commentInput-${postId}`);
+        if (!currentUser) return;
+        const input = document.getElementById('commentInput-' + postId);
         const text = input.value.trim();
         if (!text) return;
-        const db = getDB();
-        const post = db.posts.find(p => p.id === postId);
-        if (!post) return;
-        if (!post.comments) post.comments = [];
-        post.comments.push({ author: currentUser, text, time: Date.now() });
-        saveDB(db);
-        input.value = '';
-        loadPosts();
-        // 重新显示评论区域
-        document.getElementById(`comment-${postId}`).style.display = 'block';
-    }
 
-    // ========== 关注/取消关注 ==========
-    function toggleFollow(targetUser, btn) {
-        const db = getDB();
-        const user = db.users[currentUser];
-        if (!user) return;
-        if (!user.following) user.following = [];
-        const idx = user.following.indexOf(targetUser);
-        if (idx > -1) {
-            user.following.splice(idx, 1);
-            btn.textContent = '关注';
-            btn.classList.remove('following');
-        } else {
-            user.following.push(targetUser);
-            btn.textContent = '已关注';
-            btn.classList.add('following');
-        }
-        saveDB(db);
-        // 更新界面以反映关注状态
-        loadPosts();
+        const commentsRef = database.ref('posts/' + postId + '/comments');
+        commentsRef.push({
+            author: currentUser.username,
+            text: text,
+            time: Date.now()
+        }).then(() => {
+            input.value = '';
+        });
     }
 </script>
 </body>
