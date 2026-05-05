@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>迷你社交 - 完整版</title>
+    <title>迷你社交 - 私聊+五子棋</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -57,6 +57,7 @@
         .av-lg { width: 50px; height: 50px; font-size: 22px; }
         .av-md { width: 40px; height: 40px; font-size: 18px; }
         .av-sm { width: 30px; height: 30px; font-size: 13px; }
+        .av-xs { width: 24px; height: 24px; font-size: 11px; }
         
         .card {
             background: var(--card-bg);
@@ -196,21 +197,19 @@
             border-radius: 25px;
             padding: 4px;
             box-shadow: var(--shadow);
-            flex-wrap: wrap;
         }
         .tabs button {
             flex: 1;
-            padding: 10px 6px;
+            padding: 10px;
             border: none;
             border-radius: 22px;
             background: transparent;
             color: var(--text-secondary);
             cursor: pointer;
-            font-size: 12px;
+            font-size: 13px;
             transition: all 0.3s;
             font-weight: 500;
             white-space: nowrap;
-            min-width: 50px;
         }
         .tabs button.active { background: var(--gradient); color: white; }
         
@@ -282,6 +281,7 @@
         .profile-stats .stat-num { font-size: 22px; font-weight: 700; color: #667eea; }
         .profile-stats .stat-label { font-size: 11px; color: var(--text-secondary); }
         
+        /* 五子棋 */
         .game-board-container { display: flex; flex-direction: column; align-items: center; gap: 10px; }
         .board-canvas { background: #deb887; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
         .game-info { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 450px; padding: 10px; background: var(--card-bg); border-radius: 10px; }
@@ -294,10 +294,24 @@
         .game-chat-input input { flex: 1; margin: 0; font-size: 13px; padding: 8px 14px; }
         .game-status { text-align: center; font-size: 18px; font-weight: 700; padding: 10px; color: #667eea; }
         
+        /* 私聊 */
+        .chat-contacts {
+            display: flex; flex-direction: column; gap: 2px;
+        }
+        .contact-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px; cursor: pointer; transition: background 0.2s;
+            border-radius: 10px;
+        }
+        .contact-item:hover { background: var(--hover); }
+        .contact-item .contact-info { flex: 1; }
+        .contact-item .contact-name { font-weight: 600; font-size: 14px; }
+        .contact-item .contact-last { font-size: 12px; color: var(--text-secondary); }
+        .contact-item .contact-time { font-size: 11px; color: var(--text-secondary); }
+        
         .chat-messages {
             max-height: 350px; overflow-y: auto; padding: 10px;
             display: flex; flex-direction: column; gap: 8px;
-            background: var(--input-bg); border-radius: 12px; margin-bottom: 10px;
         }
         .chat-bubble {
             max-width: 75%; padding: 10px 14px;
@@ -309,24 +323,13 @@
             align-self: flex-end; border-bottom-right-radius: 4px;
         }
         .chat-bubble.theirs {
-            background: var(--card-bg); color: var(--text);
+            background: var(--input-bg); color: var(--text);
             align-self: flex-start; border-bottom-left-radius: 4px;
         }
         .chat-bubble .bubble-time {
             font-size: 10px; opacity: 0.7; margin-top: 4px;
             display: block; text-align: right;
         }
-        
-        .contact-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 12px; cursor: pointer; transition: background 0.2s;
-            border-radius: 10px;
-        }
-        .contact-item:hover { background: var(--hover); }
-        .contact-item .contact-info { flex: 1; }
-        .contact-item .contact-name { font-weight: 600; font-size: 14px; }
-        .contact-item .contact-last { font-size: 12px; color: var(--text-secondary); }
-        .contact-item .contact-time { font-size: 11px; color: var(--text-secondary); }
         
         .notification-panel {
             position: fixed; top: 0; right: 0;
@@ -385,9 +388,8 @@
         @media (max-width: 500px) {
             .post .post-content, .post .post-actions-row, .comment-section { padding-left: 0; }
             .post-create { flex-direction: column; }
-            .tabs button { font-size: 10px; padding: 8px 4px; min-width: 40px; }
-            .profile-stats { gap: 10px; }
-            .profile-stats .stat-num { font-size: 18px; }
+            .tabs button { font-size: 11px; padding: 8px 4px; }
+            .profile-stats { gap: 12px; }
         }
     </style>
 </head>
@@ -416,6 +418,7 @@
                 <span class="username" id="navUsername"></span>
             </div>
             <div class="nav-right">
+                <button class="btn-icon" onclick="switchTab('chat')" title="私信">💬</button>
                 <div class="notification-bell">
                     <button class="btn-icon" onclick="openNotifications()" title="通知">🔔</button>
                     <span class="badge hidden" id="notifBadge">0</span>
@@ -426,12 +429,11 @@
         </div>
         
         <div class="tabs">
-            <button id="tabTimeline" class="active" onclick="switchTab('timeline')">📋</button>
-            <button id="tabHot" onclick="switchTab('hot')">🔥</button>
-            <button id="tabDiscover" onclick="switchTab('discover')">🔍</button>
-            <button id="tabUsers" onclick="switchTab('users')">👥</button>
-            <button id="tabChat" onclick="switchTab('chat')">💬</button>
-            <button id="tabGroups" onclick="switchTab('groups')">👥+</button>
+            <button id="tabTimeline" class="active" onclick="switchTab('timeline')">📋 动态</button>
+            <button id="tabHot" onclick="switchTab('hot')">🔥 热门</button>
+            <button id="tabDiscover" onclick="switchTab('discover')">🔍 发现</button>
+            <button id="tabUsers" onclick="switchTab('users')">👥 用户</button>
+            <button id="tabChat" onclick="switchTab('chat')">💬 私聊</button>
         </div>
         
         <div class="card post-create" id="postCreateBox">
@@ -508,7 +510,7 @@
             <button class="close-btn" onclick="closeChatModal()">✕</button>
             <h3 id="chatTitle">💬 私聊</h3>
             <div class="chat-messages" id="chatMessages"></div>
-            <div style="display:flex;gap:8px;">
+            <div style="display:flex;gap:8px;margin-top:10px;">
                 <input type="text" id="chatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendPrivateMessage()">
                 <button class="btn btn-sm" style="background:#667eea;color:white;border:none;white-space:nowrap;" onclick="sendPrivateMessage()">发送</button>
             </div>
@@ -537,9 +539,8 @@
     let unreadCount = 0;
     let chatPartner = null;
     let chatListener = null;
-    let currentGroup = null;
-    let groupMsgListener = null;
 
+    // 五子棋
     let gameData = null;
     let gameId = null;
     let gameListener = null;
@@ -562,7 +563,8 @@
     }
     function avatarHTML(username, size = 'md') {
         const color = getAvatarColor(username);
-        return `<div class="color-avatar av-${size}" style="background:${color};">${username[0].toUpperCase()}</div>`;
+        const sizeClass = `av-${size}`;
+        return `<div class="color-avatar ${sizeClass}" style="background:${color};">${username[0].toUpperCase()}</div>`;
     }
 
     function saveCredentials(u, p) { localStorage.setItem('savedUsername', u); localStorage.setItem('savedPassword', p); localStorage.setItem('rememberMe', 'true'); }
@@ -606,6 +608,7 @@
         document.getElementById('createAvatar').innerHTML = avatarHTML(currentUser.username);
         document.querySelector('.btn-icon[title="深色模式"]').textContent = darkMode ? '☀️' : '🌙';
         listenToNotifications();
+        listenToGameInvites();
         switchTab('timeline');
     }
 
@@ -668,7 +671,6 @@
         else if (tab === 'discover') loadAllPosts();
         else if (tab === 'users') loadUserList('');
         else if (tab === 'chat') loadChatContacts();
-        else if (tab === 'groups') loadGroups();
     }
 
     function createPost() {
@@ -692,7 +694,8 @@
     function loadTimeline() {
         const fl = [...Object.keys(currentUser.following || {}), currentUser.username];
         const load = s => {
-            const posts = []; s.forEach(c => { const p = { id: c.key, ...c.val() }; if (fl.includes(p.author)) posts.push(p); });
+            const posts = [];
+            s.forEach(c => { const p = { id: c.key, ...c.val() }; if (fl.includes(p.author)) posts.push(p); });
             posts.sort((a, b) => b.timestamp - a.timestamp);
             renderPosts(posts);
         };
@@ -819,6 +822,7 @@
         gr.set({ host: currentUser.username, opponent: opp, board: {}, currentTurn: '', status: 'waiting', chat: {}, winner: '', rematch: {}, createdAt: Date.now() })
             .then(() => { sendNotification(opp, 'game_invite', currentUser.username, '', gameId); openGame(gameId); });
     }
+    function listenToGameInvites() {}
     function acceptGameInvite(gid) {
         db.ref('games/'+gid+'/status').set('playing').then(() => db.ref('games/'+gid+'/currentTurn').set('black'));
         openGame(gid);
@@ -986,17 +990,22 @@
     }
 
     // ========== 私聊 ==========
-    function getChatId(u1, u2) { return [u1, u2].sort().join('_'); }
+    function getChatId(user1, user2) {
+        return [user1, user2].sort().join('_');
+    }
+    
     function openChat(partner) {
         chatPartner = partner;
         document.getElementById('chatTitle').textContent = '💬 与 ' + partner + ' 聊天';
         document.getElementById('chatMessages').innerHTML = '<div class="loading">加载中...</div>';
         document.getElementById('chatInput').value = '';
         document.getElementById('chatModal').classList.remove('hidden');
+        
         if (chatListener) chatListener();
         const chatId = getChatId(currentUser.username, partner);
         chatListener = db.ref('chats/' + chatId).on('value', s => {
-            const msgs = []; s.forEach(c => msgs.push({ id: c.key, ...c.val() }));
+            const msgs = [];
+            s.forEach(c => msgs.push({ id: c.key, ...c.val() }));
             msgs.sort((a, b) => a.time - b.time);
             const div = document.getElementById('chatMessages');
             div.innerHTML = msgs.length === 0 ? '<div style="text-align:center;color:var(--text-secondary);padding:20px;">开始聊天吧！</div>' :
@@ -1004,22 +1013,30 @@
             div.scrollTop = div.scrollHeight;
         });
     }
+    
     function sendPrivateMessage() {
         const input = document.getElementById('chatInput');
         const text = input.value.trim();
         if (!text || !chatPartner) return;
         const chatId = getChatId(currentUser.username, chatPartner);
-        db.ref('chats/' + chatId).push({ from: currentUser.username, to: chatPartner, text, time: Date.now() });
-        input.value = '';
+        db.ref('chats/' + chatId).push({
+            from: currentUser.username,
+            to: chatPartner,
+            text: text,
+            time: Date.now()
+        }).then(() => { input.value = ''; });
     }
+    
     function closeChatModal() {
         document.getElementById('chatModal').classList.add('hidden');
         if (chatListener) { chatListener(); chatListener = null; }
         chatPartner = null;
     }
+    
     function loadChatContacts() {
         const area = document.getElementById('contentArea');
         area.innerHTML = '<div class="loading">加载中...</div>';
+        
         db.ref('chats').once('value').then(s => {
             const contacts = new Map();
             const me = currentUser.username;
@@ -1032,121 +1049,31 @@
                 const partner = chatId.split('_').find(u => u !== me);
                 contacts.set(partner, lastMsg);
             });
+            
+            // 也显示所有关注的用户（即使没聊过天）
             const following = Object.keys(currentUser.following || {});
             following.forEach(f => { if (!contacts.has(f)) contacts.set(f, null); });
-            const sorted = [...contacts.entries()].sort((a, b) => (b[1]?.time||0) - (a[1]?.time||0));
-            if (sorted.length === 0) { area.innerHTML = '<div class="empty-state">💬 关注好友后可以私聊</div>'; return; }
+            
+            const sorted = [...contacts.entries()].sort((a, b) => {
+                const ta = a[1] ? a[1].time : 0;
+                const tb = b[1] ? b[1].time : 0;
+                return tb - ta;
+            });
+            
+            if (sorted.length === 0) {
+                area.innerHTML = '<div class="empty-state">💬 关注好友后可以私聊</div>';
+                return;
+            }
+            
             area.innerHTML = sorted.map(([partner, lastMsg]) => {
                 const lastText = lastMsg ? (lastMsg.from === me ? '你: ' : '') + lastMsg.text : '点击开始聊天';
+                const lastTime = lastMsg ? formatTime(lastMsg.time) : '';
                 return `<div class="card contact-item" onclick="openChat('${partner}')">
-                    ${avatarHTML(partner)}<div class="contact-info"><div class="contact-name">${partner}</div><div class="contact-last">${esc((lastText||'').substring(0, 40))}</div></div>
-                    <div class="contact-time">${lastMsg ? formatTime(lastMsg.time) : ''}</div></div>`;
+                    ${avatarHTML(partner)}<div class="contact-info"><div class="contact-name">${partner}</div><div class="contact-last">${esc(lastText.substring(0, 40))}</div></div>
+                    <div class="contact-time">${lastTime}</div></div>`;
             }).join('');
         });
     }
-
-    // ========== 群组 ==========
-    function createGroup() {
-        const name = prompt('请输入群组名称：');
-        if (!name || !name.trim()) return;
-        const groupRef = db.ref('groups').push();
-        groupRef.set({
-            name: name.trim(),
-            creator: currentUser.username,
-            members: { [currentUser.username]: true },
-            createdAt: Date.now(),
-            messages: {}
-        });
-        loadGroups();
-    }
-    function loadGroups() {
-        const area = document.getElementById('contentArea');
-        area.innerHTML = '<div class="loading">加载中...</div>';
-        db.ref('groups').once('value').then(s => {
-            const groups = []; s.forEach(c => groups.push({ id: c.key, ...c.val() }));
-            if (groups.length === 0) {
-                area.innerHTML = `<div class="empty-state">👥 还没有群组<br><br><button class="btn btn-sm" style="background:#667eea;color:white;border:none;" onclick="createGroup()">+ 创建群组</button></div>`;
-                return;
-            }
-            area.innerHTML = `<div style="margin-bottom:12px;"><button class="btn btn-sm" style="background:#667eea;color:white;border:none;" onclick="createGroup()">+ 创建群组</button></div>` +
-                groups.map(g => {
-                    const mc = Object.keys(g.members || {}).length;
-                    const isMember = (g.members || {})[currentUser.username];
-                    return `<div class="card" style="cursor:pointer;padding:16px;" onclick="${isMember ? `openGroup('${g.id}')` : `joinGroup('${g.id}')`}">
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#f39c12,#e74c3c);display:flex;align-items:center;justify-content:center;color:white;font-size:20px;">👥</div>
-                            <div style="flex:1;"><div style="font-weight:600;">${esc(g.name)}</div><div style="font-size:12px;color:var(--text-secondary);">${mc} 位成员 · 创建者: ${g.creator}</div></div>
-                            <button class="btn btn-sm" onclick="event.stopPropagation();${isMember ? `openGroup('${g.id}')` : `joinGroup('${g.id}')`}">${isMember ? '进入' : '加入'}</button>
-                        </div>
-                    </div>`;
-                }).join('');
-        });
-    }
-    function joinGroup(groupId) {
-        db.ref('groups/' + groupId + '/members/' + currentUser.username).set(true).then(() => openGroup(groupId));
-    }
-    function openGroup(groupId) {
-        currentGroup = groupId;
-        db.ref('groups/' + groupId).once('value').then(s => {
-            const group = s.val();
-            if (!group) return;
-            document.getElementById('profileContent').innerHTML = `
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                    <h3>👥 ${esc(group.name)}</h3>
-                    <button class="btn btn-sm danger" onclick="leaveGroup('${groupId}')">退出群组</button>
-                </div>
-                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${Object.keys(group.members||{}).length} 位成员：${Object.keys(group.members||{}).join('、')}</div>
-                <div class="chat-messages" id="groupMessages"></div>
-                <div style="display:flex;gap:8px;">
-                    <input type="text" id="groupMsgInput" placeholder="发送消息..." onkeydown="if(event.key==='Enter')sendGroupMessage()">
-                    <button class="btn btn-sm" style="background:#667eea;color:white;border:none;white-space:nowrap;" onclick="sendGroupMessage()">发送</button>
-                </div>
-            `;
-            document.getElementById('profileModal').classList.remove('hidden');
-            if (groupMsgListener) groupMsgListener();
-            groupMsgListener = db.ref('groups/' + groupId + '/messages').on('value', s => {
-                const msgs = []; s.forEach(c => msgs.push({ id: c.key, ...c.val() }));
-                msgs.sort((a, b) => a.time - b.time);
-                const div = document.getElementById('groupMessages');
-                if (div) {
-                    div.innerHTML = msgs.map(m => `
-                        <div style="display:flex;align-items:flex-start;gap:8px;${m.from===currentUser.username?'flex-direction:row-reverse;':''}">
-                            ${avatarHTML(m.from, 'sm')}
-                            <div style="background:${m.from===currentUser.username?'#667eea':'var(--card-bg)'};color:${m.from===currentUser.username?'white':'var(--text)'};padding:8px 14px;border-radius:16px;max-width:70%;font-size:14px;">
-                                ${m.from !== currentUser.username ? `<div style="font-size:11px;font-weight:600;margin-bottom:2px;">${m.from}</div>` : ''}
-                                ${esc(m.text)}
-                                <div style="font-size:10px;opacity:0.7;text-align:right;">${formatTime(m.time)}</div>
-                            </div>
-                        </div>
-                    `).join('');
-                    div.scrollTop = div.scrollHeight;
-                }
-            });
-        });
-    }
-    function sendGroupMessage() {
-        if (!currentGroup) return;
-        const input = document.getElementById('groupMsgInput');
-        const text = input.value.trim();
-        if (!text) return;
-        db.ref('groups/' + currentGroup + '/messages').push({ from: currentUser.username, text, time: Date.now() });
-        input.value = '';
-    }
-    function leaveGroup(groupId) {
-        if (confirm('确定退出群组吗？')) {
-            db.ref('groups/' + groupId + '/members/' + currentUser.username).remove();
-            if (groupMsgListener) { groupMsgListener(); groupMsgListener = null; }
-            currentGroup = null;
-            closeProfileModal();
-            loadGroups();
-        }
-    }
-    const origCloseProfile = closeProfileModal;
-    closeProfileModal = function() {
-        if (groupMsgListener) { groupMsgListener(); groupMsgListener = null; }
-        currentGroup = null;
-        origCloseProfile();
-    };
 
     // ========== 个人主页 ==========
     function showUserProfile(username) {
@@ -1198,6 +1125,7 @@
         });
     }
     function showMyProfile() { showUserProfile(currentUser.username); }
+    function closeProfileModal() { document.getElementById('profileModal').classList.add('hidden'); }
     function openEditProfile() { document.getElementById('editNickname').value = currentUser.displayName || ''; document.getElementById('editBio').value = currentUser.bio || ''; document.getElementById('editProfileModal').classList.remove('hidden'); }
     function closeEditModal() { document.getElementById('editProfileModal').classList.add('hidden'); }
     function saveProfile() {
