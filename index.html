@@ -590,7 +590,14 @@
                     <input type="text" id="gameChatInput" placeholder="发送消息...">
                     <button class="btn btn-sm" onclick="sendGameChat()">发送</button>
                 </div>
-                <button class="btn btn-sm danger" onclick="surrenderGame()" style="margin-top:8px;">🏳️ 认输</button>
+                <div id="gameControls">
+    <button class="btn btn-sm danger" onclick="surrenderGame()" style="margin-top:8px;">🏳️ 认输</button>
+</div>
+<div id="rematchArea" class="hidden" style="text-align:center;margin-top:8px;">
+    <p id="rematchStatus" style="margin-bottom:8px;">要再来一局吗？</p>
+    <button class="btn btn-sm" style="background:#27ae60;color:white;border:none;" onclick="requestRematch()">🔄 再来一局</button>
+    <button class="btn btn-sm" onclick="exitGame()">🚪 退出游戏</button>
+</div>
             </div>
         </div>
     </div>
@@ -1163,16 +1170,22 @@
         sendNotification(fromUser, 'follow', currentUser.username, '');
     }
 
-    function openGame(gid) {
-        gameId = gid;
-        document.getElementById('gameModal').classList.remove('hidden');
-        document.getElementById('gameStatus').textContent = '准备中...';
-        document.getElementById('gameChat').innerHTML = '';
-        document.getElementById('gameChatInput').value = '';
-        
-        canvas = document.getElementById('boardCanvas');
-        ctx = canvas.getContext('2d');
-        canvas.addEventListener('click', handleBoardClick);
+   function openGame(gid) {
+    gameId = gid;
+    document.getElementById('gameModal').classList.remove('hidden');
+    document.getElementById('gameStatus').textContent = '准备中...';
+    document.getElementById('gameChat').innerHTML = '';
+    document.getElementById('gameChatInput').value = '';
+    
+    // 移除旧的事件监听（避免重复绑定）
+    canvas = document.getElementById('boardCanvas');
+    ctx = canvas.getContext('2d');
+    canvas.removeEventListener('click', handleBoardClick);
+    canvas.addEventListener('click', handleBoardClick);
+    
+    // 显示棋盘操作区，隐藏再来一局按钮
+    document.getElementById('gameControls').classList.remove('hidden');
+    document.getElementById('rematchArea').classList.add('hidden');
         
         // 监听游戏数据
         if (gameListener) gameListener();
@@ -1211,41 +1224,70 @@
     }
 
     function updateGameUI() {
-        if (!gameData) return;
-        
-        const isHost = gameData.host === currentUser.username;
-        const myColor = isHost ? 'black' : 'white';
-        const oppColor = isHost ? 'white' : 'black';
-        const opponent = isHost ? gameData.opponent : gameData.host;
-        
-        document.getElementById('blackName').textContent = isHost ? currentUser.username : opponent;
-        document.getElementById('whiteName').textContent = isHost ? opponent : currentUser.username;
-        
-        const blackIndicator = document.getElementById('playerBlack');
-        const whiteIndicator = document.getElementById('playerWhite');
-        
-        if (gameData.status === 'waiting') {
-            document.getElementById('gameStatus').textContent = '⏳ 等待对方接受...';
-            blackIndicator.className = 'player-indicator waiting';
+    if (!gameData) return;
+    
+    const isHost = gameData.host === currentUser.username;
+    const myColor = isHost ? 'black' : 'white';
+    const oppColor = isHost ? 'white' : 'black';
+    const opponent = isHost ? gameData.opponent : gameData.host;
+    
+    document.getElementById('blackName').textContent = isHost ? currentUser.username : opponent;
+    document.getElementById('whiteName').textContent = isHost ? opponent : currentUser.username;
+    
+    const blackIndicator = document.getElementById('playerBlack');
+    const whiteIndicator = document.getElementById('playerWhite');
+    const gameControls = document.getElementById('gameControls');
+    const rematchArea = document.getElementById('rematchArea');
+    const rematchStatus = document.getElementById('rematchStatus');
+    
+    if (gameData.status === 'waiting') {
+        document.getElementById('gameStatus').textContent = '⏳ 等待对方接受...';
+        blackIndicator.className = 'player-indicator waiting';
+        whiteIndicator.className = 'player-indicator waiting';
+        gameControls.classList.remove('hidden');
+        rematchArea.classList.add('hidden');
+    } else if (gameData.status === 'playing') {
+        if (gameData.currentTurn === 'black') {
+            document.getElementById('gameStatus').textContent = '⚫ 黑方回合';
+            blackIndicator.className = 'player-indicator active';
             whiteIndicator.className = 'player-indicator waiting';
-        } else if (gameData.status === 'playing') {
-            if (gameData.currentTurn === 'black') {
-                document.getElementById('gameStatus').textContent = '⚫ 黑方回合';
-                blackIndicator.className = 'player-indicator active';
-                whiteIndicator.className = 'player-indicator waiting';
-            } else {
-                document.getElementById('gameStatus').textContent = '⚪ 白方回合';
-                blackIndicator.className = 'player-indicator waiting';
-                whiteIndicator.className = 'player-indicator active';
-            }
-        } else if (gameData.status === 'ended' || gameData.status === 'surrender') {
-            if (gameData.winner === 'draw') {
-                document.getElementById('gameStatus').textContent = '🤝 平局！';
-            } else {
-                document.getElementById('gameStatus').textContent = `🏆 ${gameData.winner} 获胜！`;
-            }
+        } else {
+            document.getElementById('gameStatus').textContent = '⚪ 白方回合';
+            blackIndicator.className = 'player-indicator waiting';
+            whiteIndicator.className = 'player-indicator active';
+        }
+        gameControls.classList.remove('hidden');
+        rematchArea.classList.add('hidden');
+    } else if (gameData.status === 'ended' || gameData.status === 'surrender') {
+        // 游戏结束，不再关闭弹窗
+        gameControls.classList.add('hidden');
+        rematchArea.classList.remove('hidden');
+        
+        if (gameData.winner === 'draw') {
+            document.getElementById('gameStatus').textContent = '🤝 平局！';
+        } else {
+            document.getElementById('gameStatus').textContent = `🏆 ${gameData.winner} 获胜！`;
+        }
+        blackIndicator.className = 'player-indicator';
+        whiteIndicator.className = 'player-indicator';
+        
+        // 处理再来一局状态
+        const myRematch = gameData.rematch && gameData.rematch[currentUser.username];
+        const oppRematch = gameData.rematch && gameData.rematch[opponent];
+        
+        if (myRematch && oppRematch) {
+            // 双方都同意，开启新局
+            rematchStatus.textContent = '🔄 再来一局！开始新游戏...';
+            setTimeout(() => startNewRound(), 800);
+        } else if (myRematch) {
+            rematchStatus.textContent = '✅ 你已准备再来一局，等待对方...';
+        } else if (oppRematch) {
+            rematchStatus.textContent = '👆 对方想再来一局，点击下方按钮加入';
+        } else {
+            rematchStatus.textContent = '要再来一局吗？';
         }
     }
+}
 
     function handleBoardClick(e) {
         if (!gameData || gameData.status !== 'playing') return;
@@ -1611,6 +1653,63 @@
     document.getElementById('gameModal').addEventListener('click', function(e) {
         if (e.target === this) closeGame();
     });
+
+// ========== 再来一局 ==========
+function requestRematch() {
+    if (!gameId || !gameData) return;
+    
+    const isHost = gameData.host === currentUser.username;
+    const opponent = isHost ? gameData.opponent : gameData.host;
+    
+    // 检查对方是否也已经请求再来一局
+    const oppRematch = gameData.rematch && gameData.rematch[opponent];
+    
+    if (oppRematch) {
+        // 双方都准备好了，开启新局
+        startNewRound();
+    } else {
+        // 标记我已准备好
+        db.ref('games/' + gameId + '/rematch/' + currentUser.username).set(true);
+        document.getElementById('rematchStatus').textContent = '✅ 已准备，等待对方...';
+    }
+}
+
+function startNewRound() {
+    if (!gameId) return;
+    
+    // 清空棋盘，重置游戏
+    const isHost = gameData.host === currentUser.username;
+    const opponent = isHost ? gameData.opponent : gameData.host;
+    
+    db.ref('games/' + gameId).update({
+        board: {},
+        currentTurn: 'black',
+        status: 'playing',
+        winner: '',
+        rematch: {},
+        chat: {}
+    }).then(() => {
+        document.getElementById('gameChat').innerHTML = '';
+        document.getElementById('gameStatus').textContent = '⚫ 黑方回合';
+    });
+}
+
+function exitGame() {
+    // 如果游戏还在进行中，视为认输
+    if (gameData && gameData.status === 'playing') {
+        if (confirm('退出游戏将视为认输，确定吗？')) {
+            db.ref('games/' + gameId).update({
+                status: 'surrender',
+                winner: currentUser.username === gameData.host ? gameData.opponent : gameData.host
+            });
+            updateStats();
+            closeGame();
+        }
+    } else {
+        closeGame();
+    }
+}
+
 </script>
 </body>
 </html>
