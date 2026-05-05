@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>迷你社交 - 免费增强版</title>
+    <title>迷你社交 - 通知+热门+置顶+删除</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -19,6 +19,7 @@
             --hover: #f8f9ff;
             --shadow: 0 2px 12px rgba(0,0,0,0.06);
             --gradient: linear-gradient(135deg, #667eea, #764ba2);
+            --badge-bg: #e74c3c;
         }
         .dark-mode {
             --bg: #1a1a2e;
@@ -93,7 +94,6 @@
         }
         textarea { resize: none; font-family: inherit; }
         
-        /* 记住密码复选框 */
         .remember-row {
             display: flex;
             align-items: center;
@@ -138,12 +138,39 @@
         }
         .btn-sm:hover { background: var(--hover); }
         .btn-sm.following { background: #e8e8ff; border-color: #667eea; color: #667eea; }
+        .btn-sm.danger { color: #e74c3c; border-color: #fcc; }
+        .btn-sm.danger:hover { background: #fff0f0; }
+        .btn-sm.pin { color: #f39c12; border-color: #fde3a7; }
+        .btn-sm.pin.pinned { background: #fff8e1; }
+        
         .btn-icon {
             background: none;
             border: none;
             font-size: 20px;
             cursor: pointer;
             padding: 4px 8px;
+            position: relative;
+        }
+        
+        /* 通知铃铛 */
+        .notification-bell {
+            position: relative;
+            display: inline-block;
+        }
+        .badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 18px;
+            height: 18px;
+            background: var(--badge-bg);
+            border-radius: 50%;
+            font-size: 10px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
         }
         
         .nav {
@@ -179,9 +206,10 @@
             background: transparent;
             color: var(--text-secondary);
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             transition: all 0.3s;
             font-weight: 500;
+            white-space: nowrap;
         }
         .tabs button.active {
             background: var(--gradient);
@@ -197,8 +225,19 @@
         .post-create textarea { height: 50px; border-radius: 20px; padding: 14px 18px; }
         .post-create .btn-primary { width: auto; padding: 10px 24px; border-radius: 20px; font-size: 14px; }
         
-        .post { transition: transform 0.2s; }
+        .post { transition: transform 0.2s; position: relative; }
         .post:hover { transform: translateY(-2px); }
+        .post.pinned-post {
+            border: 2px solid #f39c12;
+            box-shadow: 0 2px 16px rgba(243,156,18,0.15);
+        }
+        .post .pin-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            color: #f39c12;
+            font-size: 14px;
+        }
         .post .post-header {
             display: flex;
             align-items: center;
@@ -211,15 +250,21 @@
         .post .author-name:hover { color: #667eea; }
         .post .post-time { font-size: 11px; color: var(--text-secondary); }
         .post .post-content { margin: 8px 0; line-height: 1.6; font-size: 15px; padding-left: 60px; }
-        .post .actions {
+        .post .post-actions-row {
             display: flex;
-            gap: 10px;
+            justify-content: space-between;
+            align-items: center;
             margin-top: 10px;
             padding-top: 10px;
             border-top: 1px solid var(--border);
             padding-left: 60px;
         }
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
         .actions .btn-sm.liked { background: #fff0f3; color: #e74c3c; border-color: #ffccd5; }
+        .post-menu { display: flex; gap: 4px; }
         
         .comment-section { margin-top: 10px; padding-left: 60px; }
         .comment-list { max-height: 200px; overflow-y: auto; margin-bottom: 8px; }
@@ -229,9 +274,23 @@
             align-items: flex-start;
             padding: 6px 0;
             font-size: 13px;
+            position: relative;
         }
         .comment-item .comment-body { flex: 1; }
         .comment-item .comment-author { font-weight: 600; }
+        .comment-item .delete-comment-btn {
+            position: absolute;
+            right: 0;
+            top: 4px;
+            background: none;
+            border: none;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 14px;
+            display: none;
+        }
+        .comment-item:hover .delete-comment-btn { display: block; }
+        .comment-item .delete-comment-btn:hover { color: #e74c3c; }
         .comment-input-row { display: flex; gap: 8px; align-items: center; }
         .comment-input-row input { margin: 0; font-size: 13px; padding: 8px 14px; }
         .comment-input-row .btn-sm { white-space: nowrap; padding: 8px 16px; background: #667eea; color: white; border: none; }
@@ -251,10 +310,7 @@
         .user-item .user-name { font-weight: 600; }
         .user-item .user-bio { font-size: 12px; color: var(--text-secondary); }
         
-        .profile-header {
-            text-align: center;
-            padding: 20px;
-        }
+        .profile-header { text-align: center; padding: 20px; }
         .profile-header .bio { color: var(--text-secondary); margin-top: 8px; }
         .profile-stats {
             display: flex;
@@ -265,6 +321,50 @@
         .profile-stats .stat { text-align: center; }
         .profile-stats .stat-num { font-size: 22px; font-weight: 700; color: #667eea; }
         .profile-stats .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        /* 通知面板 */
+        .notification-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 360px;
+            max-width: 90vw;
+            height: 100vh;
+            background: var(--card-bg);
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            z-index: 200;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+        }
+        .notification-panel.open { transform: translateX(0); }
+        .notification-panel .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--card-bg);
+            z-index: 1;
+        }
+        .notification-panel .panel-header h3 { font-size: 18px; }
+        .notification-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        .notification-item:hover { background: var(--hover); }
+        .notification-item.unread { background: #f0f2ff; }
+        .dark-mode .notification-item.unread { background: #2a2a50; }
+        .notification-item .notif-text { flex: 1; font-size: 14px; line-height: 1.5; }
+        .notification-item .notif-time { font-size: 11px; color: var(--text-secondary); }
+        .notif-empty { text-align: center; padding: 40px; color: var(--text-secondary); }
         
         .modal-overlay {
             position: fixed;
@@ -302,9 +402,11 @@
         .loading { text-align: center; color: var(--text-secondary); padding: 30px; }
         .search-box { margin-bottom: 12px; }
         
+        /* 响应式 */
         @media (max-width: 500px) {
-            .post .post-content, .post .actions, .comment-section { padding-left: 0; }
+            .post .post-content, .post .post-actions-row, .comment-section { padding-left: 0; }
             .post-create { flex-direction: column; }
+            .tabs button { font-size: 11px; padding: 8px 4px; }
         }
     </style>
 </head>
@@ -319,7 +421,6 @@
         <div id="registerFields" class="hidden">
             <input type="text" id="bioInput" placeholder="📝 个性签名（可选）" maxlength="50">
         </div>
-        <!-- 记住密码 -->
         <label class="remember-row" id="rememberRow">
             <input type="checkbox" id="rememberCheckbox"> 记住密码
         </label>
@@ -336,6 +437,10 @@
                 <span class="username" id="navUsername"></span>
             </div>
             <div class="nav-right">
+                <div class="notification-bell">
+                    <button class="btn-icon" onclick="openNotifications()" title="通知">🔔</button>
+                    <span class="badge hidden" id="notifBadge">0</span>
+                </div>
                 <button class="btn-icon" onclick="toggleDarkMode()" title="深色模式">🌙</button>
                 <button class="btn btn-sm" onclick="logout()">🚪 退出</button>
             </div>
@@ -343,6 +448,7 @@
         
         <div class="tabs">
             <button id="tabTimeline" class="active" onclick="switchTab('timeline')">📋 动态</button>
+            <button id="tabHot" onclick="switchTab('hot')">🔥 热门</button>
             <button id="tabDiscover" onclick="switchTab('discover')">🔍 发现</button>
             <button id="tabUsers" onclick="switchTab('users')">👥 用户</button>
         </div>
@@ -362,6 +468,16 @@
         <div id="contentArea"></div>
     </div>
     
+    <!-- 通知面板 -->
+    <div class="notification-panel" id="notifPanel">
+        <div class="panel-header">
+            <h3>🔔 通知</h3>
+            <button class="btn btn-sm" onclick="markAllNotificationsRead()">全部已读</button>
+        </div>
+        <div id="notifList"></div>
+    </div>
+    
+    <!-- 个人主页弹窗 -->
     <div class="modal-overlay hidden" id="profileModal">
         <div class="modal">
             <button class="close-btn" onclick="closeProfileModal()">✕</button>
@@ -369,6 +485,7 @@
         </div>
     </div>
     
+    <!-- 编辑资料弹窗 -->
     <div class="modal-overlay hidden" id="editProfileModal">
         <div class="modal">
             <button class="close-btn" onclick="closeEditModal()">✕</button>
@@ -382,7 +499,6 @@
 </div>
 
 <script>
-    // ========== Firebase 配置 ==========
     const firebaseConfig = {
         apiKey: "AIzaSyByRvYiXfmG7_u3BVaZzUdRvhyUKv-L5yk",
         authDomain: "mini-social-91anguang.firebaseapp.com",
@@ -400,34 +516,7 @@
     let currentTab = 'timeline';
     let isRegisterMode = false;
     let darkMode = localStorage.getItem('darkMode') === 'true';
-
-    // ========== 记住密码功能 ==========
-    function saveCredentials(username, password) {
-        localStorage.setItem('savedUsername', username);
-        localStorage.setItem('savedPassword', password);
-        localStorage.setItem('rememberMe', 'true');
-    }
-
-    function clearCredentials() {
-        localStorage.removeItem('savedUsername');
-        localStorage.removeItem('savedPassword');
-        localStorage.removeItem('rememberMe');
-    }
-
-    function loadSavedCredentials() {
-        if (localStorage.getItem('rememberMe') === 'true') {
-            const savedUser = localStorage.getItem('savedUsername');
-            const savedPass = localStorage.getItem('savedPassword');
-            if (savedUser && savedPass) {
-                document.getElementById('usernameInput').value = savedUser;
-                document.getElementById('passwordInput').value = savedPass;
-                document.getElementById('rememberCheckbox').checked = true;
-            }
-        }
-    }
-
-    // 页面加载时自动填充
-    loadSavedCredentials();
+    let unreadCount = 0;
 
     const avatarColors = [
         '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c',
@@ -449,13 +538,37 @@
         return `<div class="color-avatar ${sizeClass}" style="background:${color};">${username[0].toUpperCase()}</div>`;
     }
 
+    // ========== 记住密码 ==========
+    function saveCredentials(username, password) {
+        localStorage.setItem('savedUsername', username);
+        localStorage.setItem('savedPassword', password);
+        localStorage.setItem('rememberMe', 'true');
+    }
+    function clearCredentials() {
+        localStorage.removeItem('savedUsername');
+        localStorage.removeItem('savedPassword');
+        localStorage.removeItem('rememberMe');
+    }
+    function loadSavedCredentials() {
+        if (localStorage.getItem('rememberMe') === 'true') {
+            const savedUser = localStorage.getItem('savedUsername');
+            const savedPass = localStorage.getItem('savedPassword');
+            if (savedUser && savedPass) {
+                document.getElementById('usernameInput').value = savedUser;
+                document.getElementById('passwordInput').value = savedPass;
+                document.getElementById('rememberCheckbox').checked = true;
+            }
+        }
+    }
+    loadSavedCredentials();
+
     if (darkMode) document.body.classList.add('dark-mode');
     
     function toggleDarkMode() {
         darkMode = !darkMode;
         document.body.classList.toggle('dark-mode', darkMode);
         localStorage.setItem('darkMode', darkMode);
-        document.querySelector('.btn-icon').textContent = darkMode ? '☀️' : '🌙';
+        document.querySelector('.btn-icon[title="深色模式"]').textContent = darkMode ? '☀️' : '🌙';
     }
 
     document.getElementById('switchMode').addEventListener('click', () => {
@@ -487,7 +600,8 @@
         document.getElementById('navUsername').textContent = currentUser.displayName || currentUser.username;
         document.getElementById('navAvatar').innerHTML = avatarHTML(currentUser.username);
         document.getElementById('createAvatar').innerHTML = avatarHTML(currentUser.username);
-        document.querySelector('.btn-icon').textContent = darkMode ? '☀️' : '🌙';
+        document.querySelector('.btn-icon[title="深色模式"]').textContent = darkMode ? '☀️' : '🌙';
+        listenToNotifications();
         switchTab('timeline');
     }
 
@@ -517,7 +631,8 @@
                     bio: bio || '这个人很懒，什么都没写',
                     createdAt: Date.now(),
                     following: {},
-                    followers: {}
+                    followers: {},
+                    pinnedPost: ''
                 }).then(() => {
                     msgDiv.className = 'success-msg';
                     msgDiv.textContent = '注册成功！请登录';
@@ -533,13 +648,9 @@
                 if (!userData) { msgDiv.textContent = '用户不存在'; btn.disabled = false; btn.textContent = '登 录'; return; }
                 if (userData.password !== password) { msgDiv.textContent = '密码错误'; btn.disabled = false; btn.textContent = '登 录'; return; }
                 
-                // 记住密码
                 const rememberMe = document.getElementById('rememberCheckbox').checked;
-                if (rememberMe) {
-                    saveCredentials(username, password);
-                } else {
-                    clearCredentials();
-                }
+                if (rememberMe) saveCredentials(username, password);
+                else clearCredentials();
                 
                 currentUser = userData;
                 showMain();
@@ -554,26 +665,28 @@
     }
 
     function logout() {
-        // 退出时不清除记住的密码，保留在登录框
         currentUser = null;
         showAuth();
     }
 
+    // ========== 标签切换 ==========
     function switchTab(tab) {
         currentTab = tab;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
         
         document.getElementById('postCreateBox').classList.toggle('hidden', tab !== 'timeline');
-        document.getElementById('searchBox').classList.toggle('hidden', tab === 'timeline');
+        document.getElementById('searchBox').classList.toggle('hidden', tab !== 'discover' && tab !== 'users');
         
         document.getElementById('searchInput').value = '';
         
         if (tab === 'timeline') loadTimeline();
+        else if (tab === 'hot') loadHotPosts();
         else if (tab === 'discover') loadAllPosts();
         else if (tab === 'users') loadUserList('');
     }
 
+    // ========== 发布动态 ==========
     function createPost() {
         const content = document.getElementById('postContent').value.trim();
         if (!content) return;
@@ -588,6 +701,33 @@
         });
     }
 
+    // ========== 删除动态 ==========
+    function deletePost(postId) {
+        if (confirm('确定删除这条动态吗？')) {
+            db.ref('posts/' + postId).remove();
+            // 如果该动态被置顶，清除置顶
+            if (currentUser.pinnedPost === postId) {
+                db.ref('users/' + currentUser.username + '/pinnedPost').set('');
+                currentUser.pinnedPost = '';
+            }
+        }
+    }
+
+    // ========== 删除评论 ==========
+    function deleteComment(postId, commentKey) {
+        db.ref('posts/' + postId + '/comments/' + commentKey).remove();
+    }
+
+    // ========== 置顶动态 ==========
+    function togglePin(postId) {
+        const newPin = currentUser.pinnedPost === postId ? '' : postId;
+        db.ref('users/' + currentUser.username + '/pinnedPost').set(newPin).then(() => {
+            currentUser.pinnedPost = newPin;
+            if (currentTab === 'timeline') loadTimeline();
+        });
+    }
+
+    // ========== 加载动态 ==========
     function loadTimeline() {
         const following = currentUser.following || {};
         const followingList = Object.keys(following);
@@ -623,6 +763,23 @@
         });
     }
 
+    // ========== 热门动态 ==========
+    function loadHotPosts() {
+        db.ref('posts').once('value').then(snapshot => {
+            const posts = [];
+            snapshot.forEach(child => posts.push({ id: child.key, ...child.val() }));
+            // 按点赞数排序
+            posts.sort((a, b) => {
+                const aLikes = a.likes ? Object.keys(a.likes).length : 0;
+                const bLikes = b.likes ? Object.keys(b.likes).length : 0;
+                return bLikes - aLikes;
+            });
+            // 只显示有点赞的
+            const hotPosts = posts.filter(p => p.likes && Object.keys(p.likes).length > 0);
+            renderPosts(hotPosts.length > 0 ? hotPosts : posts.slice(0, 20));
+        });
+    }
+
     function renderPosts(posts) {
         const area = document.getElementById('contentArea');
         if (posts.length === 0) {
@@ -630,15 +787,27 @@
             return;
         }
 
+        // 置顶动态排在最前面
+        const pinnedId = currentUser.pinnedPost;
+        posts.sort((a, b) => {
+            if (a.id === pinnedId) return -1;
+            if (b.id === pinnedId) return 1;
+            return 0;
+        });
+
         area.innerHTML = posts.map(post => {
             const likes = post.likes || {};
             const likeCount = Object.keys(likes).length;
             const isLiked = likes[currentUser.username] === true;
             const comments = post.comments || {};
-            const commentList = Object.values(comments).sort((a, b) => a.time - b.time);
-
+            const commentList = Object.values(comments);
+            const commentKeys = Object.keys(comments);
+            const isOwner = post.author === currentUser.username;
+            const isPinned = post.id === pinnedId;
+            
             return `
-                <div class="card post">
+                <div class="card post ${isPinned ? 'pinned-post' : ''}">
+                    ${isPinned ? '<div class="pin-badge">📌 已置顶</div>' : ''}
                     <div class="post-header" onclick="showUserProfile('${post.author}')">
                         ${avatarHTML(post.author)}
                         <div class="author-info">
@@ -647,15 +816,21 @@
                         </div>
                     </div>
                     <div class="post-content">${esc(post.content)}</div>
-                    <div class="actions">
-                        <button class="btn btn-sm ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
-                            ${isLiked ? '❤️' : '🤍'} ${likeCount}
-                        </button>
-                        <button class="btn btn-sm" onclick="toggleComments('${post.id}')">💬 ${commentList.length}</button>
+                    <div class="post-actions-row">
+                        <div class="actions">
+                            <button class="btn btn-sm ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+                                ${isLiked ? '❤️' : '🤍'} ${likeCount}
+                            </button>
+                            <button class="btn btn-sm" onclick="toggleComments('${post.id}')">💬 ${commentList.length}</button>
+                        </div>
+                        <div class="post-menu">
+                            ${isOwner ? `<button class="btn btn-sm pin ${isPinned ? 'pinned' : ''}" onclick="togglePin('${post.id}')">${isPinned ? '📌 取消置顶' : '📌 置顶'}</button>` : ''}
+                            ${isOwner ? `<button class="btn btn-sm danger" onclick="deletePost('${post.id}')">🗑️ 删除</button>` : ''}
+                        </div>
                     </div>
                     <div class="comment-section" id="comments-${post.id}" style="display:none;">
                         <div class="comment-list">
-                            ${commentList.map(c => `
+                            ${commentList.map((c, i) => `
                                 <div class="comment-item">
                                     ${avatarHTML(c.author, 'sm')}
                                     <div class="comment-body">
@@ -663,6 +838,8 @@
                                         <span style="color:var(--text-secondary);font-size:11px;">${formatTime(c.time)}</span>
                                         <div>${esc(c.text)}</div>
                                     </div>
+                                    ${(c.author === currentUser.username || isOwner) ? 
+                                        `<button class="delete-comment-btn" onclick="deleteComment('${post.id}', '${commentKeys[i]}')">✕</button>` : ''}
                                 </div>
                             `).join('') || '<div style="color:var(--text-secondary);font-size:12px;">暂无评论</div>'}
                         </div>
@@ -725,6 +902,7 @@
         loadUserList(query);
     }
 
+    // ========== 关注 ==========
     function toggleFollow(targetUsername, btn) {
         const myRef = db.ref('users/' + currentUser.username);
         const theirRef = db.ref('users/' + targetUsername);
@@ -740,12 +918,110 @@
         } else {
             myRef.child('following/' + targetUsername).set(true);
             theirRef.child('followers/' + currentUser.username).set(true);
+            // 发送关注通知
+            sendNotification(targetUsername, 'follow', currentUser.username, '');
             if (btn) { btn.textContent = '已关注'; btn.classList.add('following'); }
             if (!currentUser.following) currentUser.following = {};
             currentUser.following[targetUsername] = true;
         }
     }
 
+    // ========== 通知系统 ==========
+    function sendNotification(toUser, type, fromUser, postId) {
+        if (fromUser === toUser) return; // 不给自己发通知
+        db.ref('notifications/' + toUser).push({
+            type: type,
+            fromUser: fromUser,
+            postId: postId || '',
+            timestamp: Date.now(),
+            read: false
+        });
+    }
+
+    function listenToNotifications() {
+        db.ref('notifications/' + currentUser.username).on('value', snapshot => {
+            const notifs = [];
+            snapshot.forEach(child => {
+                notifs.push({ id: child.key, ...child.val() });
+            });
+            notifs.sort((a, b) => b.timestamp - a.timestamp);
+            
+            unreadCount = notifs.filter(n => !n.read).length;
+            const badge = document.getElementById('notifBadge');
+            if (unreadCount > 0) {
+                badge.classList.remove('hidden');
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            } else {
+                badge.classList.add('hidden');
+            }
+            
+            // 存储通知列表
+            window._notifs = notifs;
+            renderNotificationPanel();
+        });
+    }
+
+    function renderNotificationPanel() {
+        const notifs = window._notifs || [];
+        const list = document.getElementById('notifList');
+        if (notifs.length === 0) {
+            list.innerHTML = '<div class="notif-empty">🔔 暂无通知</div>';
+            return;
+        }
+        list.innerHTML = notifs.map(n => {
+            let text = '';
+            if (n.type === 'follow') text = `<strong>${n.fromUser}</strong> 关注了你`;
+            else if (n.type === 'like') text = `<strong>${n.fromUser}</strong> 赞了你的动态`;
+            else if (n.type === 'comment') text = `<strong>${n.fromUser}</strong> 评论了你的动态`;
+            
+            return `
+                <div class="notification-item ${n.read ? '' : 'unread'}" onclick="clickNotification('${n.id}', '${n.postId || ''}')">
+                    ${avatarHTML(n.fromUser, 'sm')}
+                    <div>
+                        <div class="notif-text">${text}</div>
+                        <div class="notif-time">${formatTime(n.timestamp)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function clickNotification(notifId, postId) {
+        db.ref('notifications/' + currentUser.username + '/' + notifId + '/read').set(true);
+        closeNotifications();
+        if (postId) {
+            // 跳转到发现页并高亮该动态
+            switchTab('discover');
+        }
+    }
+
+    function openNotifications() {
+        document.getElementById('notifPanel').classList.add('open');
+    }
+
+    function closeNotifications() {
+        document.getElementById('notifPanel').classList.remove('open');
+    }
+
+    function markAllNotificationsRead() {
+        if (window._notifs) {
+            window._notifs.forEach(n => {
+                db.ref('notifications/' + currentUser.username + '/' + n.id + '/read').set(true);
+            });
+        }
+    }
+
+    // 点击通知面板外部关闭
+    document.addEventListener('click', function(e) {
+        const panel = document.getElementById('notifPanel');
+        if (panel.classList.contains('open') && 
+            !panel.contains(e.target) && 
+            !e.target.closest('.notification-bell')) {
+            closeNotifications();
+        }
+    });
+
+    // ========== 个人主页 ==========
     function showUserProfile(username) {
         db.ref('users/' + username).once('value').then(snapshot => {
             const user = snapshot.val();
@@ -755,6 +1031,7 @@
             const following = user.following ? Object.keys(user.following).length : 0;
             const isFollowing = (currentUser.following || {})[username] === true;
             const isMe = username === currentUser.username;
+            const joinDays = user.createdAt ? Math.floor((Date.now() - user.createdAt) / 86400000) : 0;
             
             document.getElementById('profileContent').innerHTML = `
                 <div class="profile-header">
@@ -764,6 +1041,7 @@
                     <h3>${user.displayName || user.username}</h3>
                     <p style="color:var(--text-secondary);font-size:13px;">@${user.username}</p>
                     <p class="bio">${user.bio || '这个人很懒，什么都没写'}</p>
+                    <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">🎂 加入 ${joinDays} 天</p>
                     ${isMe ? `<button class="btn btn-sm" onclick="openEditProfile()">✏️ 编辑资料</button>` : 
                       `<button class="btn btn-sm ${isFollowing ? 'following' : ''}" 
                         onclick="toggleFollow('${username}', this);closeProfileModal();">
@@ -771,7 +1049,7 @@
                       </button>`}
                 </div>
                 <div class="profile-stats">
-                    <div class="stat"><div class="stat-num">0</div><div class="stat-label">动态</div></div>
+                    <div class="stat"><div class="stat-num" id="profilePostCount">0</div><div class="stat-label">动态</div></div>
                     <div class="stat"><div class="stat-num">${followers}</div><div class="stat-label">粉丝</div></div>
                     <div class="stat"><div class="stat-num">${following}</div><div class="stat-label">关注</div></div>
                 </div>
@@ -789,16 +1067,23 @@
                     if (post.author === username) posts.push({ id: child.key, ...post });
                 });
                 posts.sort((a, b) => b.timestamp - a.timestamp);
+                document.getElementById('profilePostCount').textContent = posts.length;
                 const pp = document.getElementById('profilePosts');
                 if (posts.length === 0) {
                     pp.innerHTML = '<div class="empty-state">还没有动态</div>';
                 } else {
-                    pp.innerHTML = posts.map(p => `
-                        <div style="padding:8px 0;border-bottom:1px solid var(--border);">
-                            <div style="font-size:14px;">${esc(p.content)}</div>
-                            <div style="font-size:11px;color:var(--text-secondary);">${formatTime(p.timestamp)}</div>
-                        </div>
-                    `).join('');
+                    pp.innerHTML = posts.map(p => {
+                        const likes = p.likes ? Object.keys(p.likes).length : 0;
+                        return `
+                            <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+                                <div style="font-size:14px;">${esc(p.content)}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);display:flex;justify-content:space-between;">
+                                    <span>${formatTime(p.timestamp)}</span>
+                                    <span>❤️ ${likes}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
                 }
             });
         });
@@ -840,14 +1125,26 @@
         });
     }
 
+    // ========== 点赞（带通知）==========
     function toggleLike(postId) {
         const ref = db.ref('posts/' + postId + '/likes/' + currentUser.username);
         ref.once('value').then(s => {
-            if (s.val()) ref.remove();
-            else ref.set(true);
+            if (s.val()) {
+                ref.remove();
+            } else {
+                ref.set(true);
+                // 获取帖子作者并发送通知
+                db.ref('posts/' + postId + '/author').once('value').then(authSnap => {
+                    const author = authSnap.val();
+                    if (author && author !== currentUser.username) {
+                        sendNotification(author, 'like', currentUser.username, postId);
+                    }
+                });
+            }
         });
     }
 
+    // ========== 评论（带通知）==========
     function toggleComments(postId) {
         const s = document.getElementById('comments-' + postId);
         s.style.display = s.style.display === 'none' ? 'block' : 'none';
@@ -861,7 +1158,16 @@
             author: currentUser.username,
             text: text,
             time: Date.now()
-        }).then(() => { input.value = ''; });
+        }).then(() => {
+            input.value = '';
+            // 发送通知
+            db.ref('posts/' + postId + '/author').once('value').then(authSnap => {
+                const author = authSnap.val();
+                if (author && author !== currentUser.username) {
+                    sendNotification(author, 'comment', currentUser.username, postId);
+                }
+            });
+        });
     }
 
     function esc(s) {
